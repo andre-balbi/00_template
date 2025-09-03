@@ -1,5 +1,9 @@
 {{ config(
-    materialized='incremental'
+    materialized='incremental',
+    partition_by={
+      "field": "data_pedido",
+      "data_type": "date"
+    }
 ) }}
 
 with source as (

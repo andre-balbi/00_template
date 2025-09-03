@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: ecommerce
     description: "Dados da nossa loja de e-commerce"
-    schema: "{{ target.schema }}_raw"
+    schema: "{% if target.name == 'prod' %}raw{% else %}{{ target.schema }}_raw{% endif %}"
     loader: bigquery
 
     tables:

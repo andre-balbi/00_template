@@ -18,17 +18,17 @@ models:
   template:
 
     bronze:
-      schema: bronze
+      schema: "{% if target.name == 'prod' %}bronze{% else %}{{ target.schema }}_bronze{% endif %}"
       materialized: table
       tags: '[bronze]'
 
     silver:
-      schema: silver
+      schema: "{% if target.name == 'prod' %}silver{% else %}{{ target.schema }}_silver{% endif %}"
       materialized: table
       tags: '[silver]'
 
     gold:
-      schema: gold
+      schema: "{% if target.name == 'prod' %}gold{% else %}{{ target.schema }}_gold{% endif %}"
       materialized: table
       tags: '[gold]'
 

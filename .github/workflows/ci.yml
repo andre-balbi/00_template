@@ -58,18 +58,18 @@ jobs:
       run: |
         dbt deps --target pr --vars "schema_id: $SCHEMA_ID"
 
-    - name: Run dbt seed first
-      run: |
-        dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
-
-    - name: Run dbt models and tests
+    - name: Run dbt with state-based execution
       run: |
         if [ -f "./dbt-state/manifest.json" ]; then
-          echo "🎯 Using state-based execution"
+          echo "🎯 Using state-based execution for PR"
+          # Run seeds only if source files changed
+          dbt seed -s 'state:modified' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" || dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
+          # Run models with state-based selection
           dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
           dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
         else
-          echo "📋 Running full execution"
+          echo "📋 Running full execution for PR (no previous state)"
+          dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
           dbt run --target pr --vars "schema_id: $SCHEMA_ID"
           dbt test --target pr --vars "schema_id: $SCHEMA_ID"
         fi

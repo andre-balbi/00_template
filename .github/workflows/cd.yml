@@ -52,17 +52,28 @@ jobs:
    - name: Run dbt deps
      run: dbt deps --target prod
 
-   - name: Run dbt seed first
-     run: dbt seed --target prod
+   - name: Debug state comparison
+     run: |
+       if [ -f "./dbt-state/manifest.json" ]; then
+         echo "🔍 Debugging state comparison:"
+         echo "Modified models:"
+         dbt ls -s 'state:modified' --defer --state ./dbt-state/ --target prod || echo "No modified models"
+         echo "Modified+ (with downstream):"
+         dbt ls -s 'state:modified+' --defer --state ./dbt-state/ --target prod || echo "No modified+ models"
+       fi
 
-   - name: Run dbt models and tests
+   - name: Run dbt with state-based execution
      run: |
        if [ -f "./dbt-state/manifest.json" ]; then
          echo "🎯 Using state-based execution for production"
+         # Run seeds only if source files changed or no previous state
+         dbt seed -s 'state:modified' --defer --state ./dbt-state/ --target prod || dbt seed --target prod
+         # Run models with state-based selection  
          dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target prod
          dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target prod
        else
-         echo "📋 Running full execution for production"
+         echo "📋 Running full execution for production (no previous state)"
+         dbt seed --target prod
          dbt run --target prod
          dbt test --target prod
        fi
