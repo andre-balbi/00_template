@@ -18,23 +18,21 @@ models:
   template:
 
     bronze:
-      schema: "{{ target.schema }}_bronze"
+      schema: bronze
       materialized: table
       tags: '[bronze]'
 
     silver:
-      schema: "{{ target.schema }}_silver"
-      materialized: table
-      tags: '[silver]'
+      schema: silver
 
     gold:
-      schema: "{{ target.schema }}_gold"
+      schema: gold
       materialized: table
       tags: '[gold]'
 
 seeds:
   template:
-    schema: "{{ target.schema }}_raw"
+    schema: staging
     tags: ['seed']
 
 # on-run-end: "{% if target.name == 'pr' %} drop schema {{ target.schema }} cascade {% endif %}"

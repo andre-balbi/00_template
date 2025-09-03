@@ -21,6 +21,6 @@ template_profile:
       type: bigquery
       method: service-account-json
       project: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')).project_id }}"
-      dataset: "pr_{{ var('schema_id') }}"
+      dataset: "staging"
       threads: 4
       keyfile_json: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')) }}"
