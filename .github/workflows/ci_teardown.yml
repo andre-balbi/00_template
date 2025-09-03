@@ -1,19 +1,20 @@
-name: CI schema teardown on PR close
+name: CI_Teardown
 
 on:
   pull_request:
-    types:
-      - closed
+    types: [closed]
+    branches:
+      - main
 
 jobs:
-  CI_TEARDOWN_job:
+  cleanup_pr_schemas:
     runs-on: ubuntu-latest
 
     env:
       GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
 
     steps:
-    - name: checkout
+    - name: Checkout repository
       uses: actions/checkout@v3
 
     - name: Set up Python
@@ -38,12 +39,14 @@ jobs:
       with:
         project_id: ${{ env.PROJECT_ID }}
 
-    - name: Get PR NUM
-      id: schema_id
-      run: echo "PR_NUM=${{ github.event.number }}" >> $GITHUB_ENV
+    - name: Drop PR schemas
+      run: |
+        echo "Cleaning up schemas for PR #${{ github.event.pull_request.number }}"
+        dbt run-operation drop_pr_staging_schemas \
+          --args '{"project_id": "${{ env.PROJECT_ID }}", "PR_number": "${{ github.event.pull_request.number }}"}' \
+          --profiles-dir ./
+      continue-on-error: true
 
-    - name: dbt deps
-      run: dbt deps
-
-    - name: drop PR schemas
-      run: dbt run-operation drop_pr_staging_schemas --args "{'project_id'":" '${PROJECT_ID}', 'PR_number'":" '${PR_NUM}' }" --profiles-dir ./
+    - name: Log cleanup completion
+      run: |
+        echo "PR schema cleanup completed for PR #${{ github.event.pull_request.number }}"
