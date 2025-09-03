@@ -3,8 +3,8 @@ version: 2
 sources:
   - name: ecommerce
     description: "Dados da nossa loja de e-commerce"
-    database: "{{ target.dataset }}"
-    schema: "raw"
+    database: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')).project_id }}"
+    schema: "{{ target.dataset }}_raw"
     loader: bigquery
 
     tables:
