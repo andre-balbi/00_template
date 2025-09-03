@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: ecommerce
     description: "Dados da nossa loja de e-commerce"
-    schema: "{{ target.schema }}_staging"
+    schema: "staging"
     loader: bigquery
 
     tables:
