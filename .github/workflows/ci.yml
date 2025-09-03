@@ -36,9 +36,12 @@ jobs:
       with:
         project_id: ${{ secrets.DBT_ENV_SECRET_PROJECT_ID }}
 
+    - name: Setup dbt state directory
+      run: mkdir -p ./dbt-state
+
     - name: Copy manifest.json from Google Cloud Storage
       run: |
-        gsutil cp gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/manifest.json ./ || echo "Manifest not found"
+        gsutil cp gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/manifest.json ./dbt-state/ || echo "Manifest not found"
     
     - name: Get Schema ID
       id: schema_id
@@ -58,10 +61,12 @@ jobs:
 
     - name: Run dbt models and tests
       run: |
-        if [ -f "./manifest.json" ]; then
-          dbt run -s 'state:modified+' --defer --state ./ --target pr --vars "schema_id: $SCHEMA_ID"
-          dbt test -s 'state:modified+' --defer --state ./ --target pr --vars "schema_id: $SCHEMA_ID"
+        if [ -f "./dbt-state/manifest.json" ]; then
+          echo "🎯 Using state-based execution"
+          dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
+          dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
         else
+          echo "📋 Running full execution"
           dbt run --target pr --vars "schema_id: $SCHEMA_ID"
           dbt test --target pr --vars "schema_id: $SCHEMA_ID"
         fi
