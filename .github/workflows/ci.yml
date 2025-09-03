@@ -62,8 +62,8 @@ jobs:
       run: |
         if [ -f "./dbt-state/manifest.json" ]; then
           echo "🎯 Using state-based execution for PR"
-          # Run seeds only if source files changed
-          dbt seed -s 'state:modified' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" || dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
+          # Always run seeds in PR environment (they don't support state-based execution)
+          dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
           # Run models with state-based selection
           dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
           dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
