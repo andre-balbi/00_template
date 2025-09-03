@@ -52,14 +52,19 @@ jobs:
    - name: Run dbt deps
      run: dbt deps --target prod
 
-   - name: Run dbt build
+   - name: Run dbt seed first
+     run: dbt seed --target prod
+
+   - name: Run dbt models and tests
      run: |
        if [ -f "./dbt-state/manifest.json" ]; then
          echo "🎯 Using state-based execution for production"
-         dbt build -s 'state:modified+' --state ./dbt-state/ --target prod
+         dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target prod
+         dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target prod
        else
-         echo "📋 Running full build for production"
-         dbt build --target prod
+         echo "📋 Running full execution for production"
+         dbt run --target prod
+         dbt test --target prod
        fi
 
    - name: Copy new manifest.json to Google Cloud Storage
