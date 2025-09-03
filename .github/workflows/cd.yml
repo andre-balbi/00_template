@@ -56,7 +56,7 @@ jobs:
     - name: Run dbt models and tests
       run: |
         if [ -f "./manifest.json" ]; then
-          dbt run -s 'state:modified+' --full-refresh --state ./ --target prod
+          dbt run -s 'state:modified+' --state ./ --target prod
           dbt test -s 'state:modified+' --state ./ --target prod
         else
           dbt run --target prod
