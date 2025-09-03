@@ -11,8 +11,8 @@ jobs:
 
     env:
       GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
-      GCLOUD_STORAGE_PATH_MANIFEST: ${{ secrets.GCLOUD_STORAGE_PATH_MANIFEST }}
-      
+      GCLOUD_STORAGE_PATH_MANIFEST: ${{ secrets.GCLOUD_STORAGE_PATH_MANIFEST }} 
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
@@ -39,12 +39,9 @@ jobs:
       with:
         project_id: ${{ env.PROJECT_ID }}
 
-    - name: Setup dbt state directory
-      run: mkdir -p ./dbt-state
-
     - name: Copy manifest.json from Google Cloud Storage
       run: |
-        gsutil cp gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/manifest.json ./dbt-state/ || echo "Manifest not found"
+        gsutil cp gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/manifest.json ./ || echo "Manifest not found"
     
     - name: Get Schema ID
       id: schema_id
@@ -58,18 +55,16 @@ jobs:
       run: |
         dbt deps --target pr --vars "schema_id: $SCHEMA_ID"
 
-    - name: Run dbt with state-based execution
+    - name: Run dbt seed first
       run: |
-        if [ -f "./dbt-state/manifest.json" ]; then
-          echo "🎯 Using state-based execution for PR"
-          # Run seeds only if source files changed
-          dbt seed -s 'state:modified' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" || dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
-          # Run models with state-based selection
-          dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
-          dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
+        dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
+
+    - name: Run dbt models and tests
+      run: |
+        if [ -f "./manifest.json" ]; then
+          dbt run -s 'state:modified+' --defer --state ./ --target pr --vars "schema_id: $SCHEMA_ID"
+          dbt test -s 'state:modified+' --defer --state ./ --target pr --vars "schema_id: $SCHEMA_ID"
         else
-          echo "📋 Running full execution for PR (no previous state)"
-          dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
           dbt run --target pr --vars "schema_id: $SCHEMA_ID"
           dbt test --target pr --vars "schema_id: $SCHEMA_ID"
         fi

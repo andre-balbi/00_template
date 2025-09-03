@@ -1,83 +1,62 @@
 name: CD_action
 
 on:
- push:
-   branches:
-     - main
+  push:
+    branches:
+      - main
 
 jobs:
- CD_job:
-   runs-on: ubuntu-latest
+  CD_job:
+    runs-on: ubuntu-latest
 
-   env:
+    env:
       GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
-      GCLOUD_STORAGE_PATH_MANIFEST: ${{ secrets.GCLOUD_STORAGE_PATH_MANIFEST }}
+      GCLOUD_STORAGE_PATH_MANIFEST: ${{ secrets.GCLOUD_STORAGE_PATH_MANIFEST }} 
 
-   steps:
-   - name: Checkout repository
-     uses: actions/checkout@v3
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-   - name: Set up Python
-     uses: actions/setup-python@v3
-     with:
-       python-version: '3.12'
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.12'
 
-   - name: Install dependencies
-     run: pip install -r dbt-requirements.txt
+    - name: Install dependencies
+      run: pip install -r dbt-requirements.txt
 
-   - name: Authenticate to Google Cloud
-     uses: google-github-actions/auth@v0.4.3
-     with:
-       credentials_json: ${{ secrets.GCLOUD_SERVICE_KEY }}
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v0.4.3
+      with:
+        credentials_json: ${{ secrets.GCLOUD_SERVICE_KEY }}
 
-   - name: Extract project ID from service key
-     id: extract_project
-     run: echo "PROJECT_ID=$(echo '${{ secrets.GCLOUD_SERVICE_KEY }}' | jq -r '.project_id')" >> $GITHUB_ENV
+    - name: Extract project ID from service key
+      id: extract_project
+      run: echo "PROJECT_ID=$(echo '${{ secrets.GCLOUD_SERVICE_KEY }}' | jq -r '.project_id')" >> $GITHUB_ENV
 
-   - name: Set up Cloud SDK
-     uses: google-github-actions/setup-gcloud@v1
-     with:
-       project_id: ${{ env.PROJECT_ID }}
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ env.PROJECT_ID }}
 
-   - name: Setup dbt state directory
-     run: mkdir -p ./dbt-state
+    - name: Copy manifest.json from Google Cloud Storage
+      run: |
+        gsutil cp gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/manifest.json ./ || echo "Manifest not found"
 
-   - name: Copy manifest.json from Google Cloud Storage
-     run: |
-       gsutil cp gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/manifest.json ./dbt-state/ || echo "Manifest not found"
+    - name: Run dbt debug
+      run: dbt debug --target prod
 
-   - name: Run dbt debug
-     run: dbt debug --target prod
+    - name: Run dbt deps
+      run: dbt deps --target prod
 
-   - name: Run dbt deps
-     run: dbt deps --target prod
+    - name: Run dbt build
+      run: |
+        if [ -f "./manifest.json" ]; then
+          dbt build -s 'state:modified+' --state ./ --target prod
+        else
+          dbt build --target prod
+        fi
 
-   - name: Debug state comparison
-     run: |
-       if [ -f "./dbt-state/manifest.json" ]; then
-         echo "🔍 Debugging state comparison:"
-         echo "Modified models:"
-         dbt ls -s 'state:modified' --defer --state ./dbt-state/ --target prod || echo "No modified models"
-         echo "Modified+ (with downstream):"
-         dbt ls -s 'state:modified+' --defer --state ./dbt-state/ --target prod || echo "No modified+ models"
-       fi
-
-   - name: Run dbt with state-based execution
-     run: |
-       if [ -f "./dbt-state/manifest.json" ]; then
-         echo "🎯 Using state-based execution for production"
-         # Run seeds only if source files changed or no previous state
-         dbt seed -s 'state:modified' --defer --state ./dbt-state/ --target prod || dbt seed --target prod
-         # Run models with state-based selection  
-         dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target prod
-         dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target prod
-       else
-         echo "📋 Running full execution for production (no previous state)"
-         dbt seed --target prod
-         dbt run --target prod
-         dbt test --target prod
-       fi
-
-   - name: Copy new manifest.json to Google Cloud Storage
-     run: |
-       gsutil cp ./target/manifest.json gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/
+    - name: Copy new manifest.json to Google Cloud Storage
+      run: |
+        gsutil cp ./target/manifest.json gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/
