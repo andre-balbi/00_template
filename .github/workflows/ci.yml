@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DBT_ENV_SECRET_PROJECT_ID: ${{ secrets.DBT_ENV_SECRET_PROJECT_ID }}
       GCLOUD_SERVICE_KEY: ${{ secrets.GCLOUD_SERVICE_KEY }}
       GCLOUD_STORAGE_PATH_MANIFEST: ${{ secrets.GCLOUD_STORAGE_PATH_MANIFEST }}
       
@@ -31,10 +30,14 @@ jobs:
       with:
         credentials_json: ${{ secrets.GCLOUD_SERVICE_KEY }}
 
+    - name: Extract project ID from service key
+      id: extract_project
+      run: echo "PROJECT_ID=$(echo '${{ secrets.GCLOUD_SERVICE_KEY }}' | jq -r '.project_id')" >> $GITHUB_ENV
+
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
-        project_id: ${{ secrets.DBT_ENV_SECRET_PROJECT_ID }}
+        project_id: ${{ env.PROJECT_ID }}
 
     - name: Setup dbt state directory
       run: mkdir -p ./dbt-state
@@ -74,5 +77,5 @@ jobs:
     - name: Drop PR schema
       run: |
         dbt run-operation drop_pr_staging_schemas \
-          --args '{"project_id": "${{ secrets.DBT_ENV_SECRET_PROJECT_ID }}", "PR_number": "${{ github.event.pull_request.number }}"}' \
+          --args '{"project_id": "${{ env.PROJECT_ID }}", "PR_number": "${{ github.event.pull_request.number }}"}' \
           --profiles-dir ./
