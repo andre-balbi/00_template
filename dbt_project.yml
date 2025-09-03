@@ -18,23 +18,23 @@ models:
   template:
 
     bronze:
-      schema: "{% if target.name == 'prod' %}bronze{% elif target.name == 'pr' %}bronze{% else %}{{ target.schema }}_bronze{% endif %}"
+      schema: "bronze"
       materialized: table
       tags: '[bronze]'
 
     silver:
-      schema: "{% if target.name == 'prod' %}silver{% elif target.name == 'pr' %}silver{% else %}{{ target.schema }}_silver{% endif %}"
+      schema: "silver"
       materialized: table
       tags: '[silver]'
 
     gold:
-      schema: "{% if target.name == 'prod' %}gold{% elif target.name == 'pr' %}gold{% else %}{{ target.schema }}_gold{% endif %}"
+      schema: "gold"
       materialized: table
       tags: '[gold]'
 
 seeds:
   template:
-    schema: "{% if target.name == 'prod' %}raw{% elif target.name == 'pr' %}raw{% else %}{{ target.schema }}_raw{% endif %}"
+    schema: "raw"
     tags: ['seed']
 
 # on-run-end: "{% if target.name == 'pr' %} drop schema {{ target.schema }} cascade {% endif %}"

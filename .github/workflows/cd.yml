@@ -78,6 +78,13 @@ jobs:
          dbt test --target prod
        fi
 
-   - name: Copy new manifest.json to Google Cloud Storage
+   - name: Validate and upload new manifest.json
      run: |
+       echo "🔍 Validating production manifest before upload:"
+       echo "Sample model schemas in new manifest:"
+       cat ./target/manifest.json | jq '.nodes | with_entries(select(.key | contains("model"))) | to_entries[0:3] | .[].value | {name: .name, schema: .schema, database: .database, relation_name: .relation_name}'
+       
+       echo "📤 Uploading manifest to Google Cloud Storage:"
        gsutil cp ./target/manifest.json gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/
+       
+       echo "✅ Manifest uploaded successfully"
