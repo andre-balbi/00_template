@@ -5,3 +5,5 @@ logs/
 
 # Added
 .env
+CLAUDE.md
+.claude

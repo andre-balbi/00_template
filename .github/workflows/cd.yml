@@ -52,16 +52,39 @@ jobs:
    - name: Run dbt deps
      run: dbt deps --target prod
 
-   - name: Run dbt build
+   - name: Debug state comparison
+     run: |
+       if [ -f "./dbt-state/manifest.json" ]; then
+         echo "🔍 Debugging state comparison:"
+         echo "Modified models:"
+         dbt ls -s 'state:modified' --defer --state ./dbt-state/ --target prod || echo "No modified models"
+         echo "Modified+ (with downstream):"
+         dbt ls -s 'state:modified+' --defer --state ./dbt-state/ --target prod || echo "No modified+ models"
+       fi
+
+   - name: Run dbt with state-based execution
      run: |
        if [ -f "./dbt-state/manifest.json" ]; then
          echo "🎯 Using state-based execution for production"
-         dbt build -s 'state:modified+' --state ./dbt-state/ --target prod
+         # Run seeds only if source files changed or no previous state
+         dbt seed -s 'state:modified' --defer --state ./dbt-state/ --target prod || dbt seed --target prod
+         # Run models with state-based selection  
+         dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target prod
+         dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target prod
        else
-         echo "📋 Running full build for production"
-         dbt build --target prod
+         echo "📋 Running full execution for production (no previous state)"
+         dbt seed --target prod
+         dbt run --target prod
+         dbt test --target prod
        fi
 
-   - name: Copy new manifest.json to Google Cloud Storage
+   - name: Validate and upload new manifest.json
      run: |
+       echo "🔍 Validating production manifest before upload:"
+       echo "Sample model schemas in new manifest:"
+       cat ./target/manifest.json | jq '.nodes | with_entries(select(.key | contains("model"))) | to_entries[0:3] | .[].value | {name: .name, schema: .schema, database: .database, relation_name: .relation_name}'
+       
+       echo "📤 Uploading manifest to Google Cloud Storage:"
        gsutil cp ./target/manifest.json gs://${{ env.GCLOUD_STORAGE_PATH_MANIFEST }}/
+       
+       echo "✅ Manifest uploaded successfully"
