@@ -1,0 +1,125 @@
+version: 2
+
+sources:
+  - name: ecommerce
+    description: "Dados da nossa loja de e-commerce"
+    schema: "{{ target.schema }}_raw"
+    loader: bigquery
+
+    tables:
+      - name: avaliacoes
+        description: "Tabela de avaliações dos produtos"
+        columns:
+          - name: cliente_id
+            description: "Chave estrangeira do cliente que fez a avaliação"
+            tests:
+              - not_null:
+                  enabled: false
+          - name: produto_id
+            description: "Chave estrangeira do produto avaliado"
+            tests:
+              - not_null:
+                  enabled: false
+
+      - name: carrinho
+        description: "Tabela de carrinhos de compras"
+        columns:
+          - name: cliente_id
+            description: "Chave estrangeira do cliente"
+            tests:
+              - not_null:
+                  enabled: false
+          - name: produto_id
+            description: "Chave estrangeira do produto"
+            tests:
+              - not_null:
+                  enabled: false
+
+      - name: categorias
+        description: "Tabela de categorias"
+        columns:
+          - name: id
+            description: "ID da categoria"
+            tests:
+              - not_null:
+                  enabled: false
+              - unique:
+                  enabled: false
+
+      - name: clientes
+        description: "Tabela de clientes"
+        columns:
+          - name: id
+            description: "ID do cliente"
+            tests:
+              - not_null:
+                  enabled: false
+              - unique:
+                  enabled: false
+
+      - name: itens_pedidos
+        description: "Itens dos pedidos"
+        columns:
+          - name: pedido_id
+            description: "ID do pedido"
+            tests:
+              - not_null:
+                  enabled: false
+          - name: produto_id
+            description: "ID do produto"
+            tests:
+              - not_null:
+                  enabled: false
+
+      - name: pagamentos
+        description: "Pagamentos"
+        columns:
+          - name: id
+            description: "ID do pagamento"
+            tests:
+              - not_null:
+                  enabled: false
+              - unique:
+                  enabled: false
+          - name: pedido_id
+            description: "ID do pedido"
+            tests:
+              - not_null:
+                  enabled: false
+
+      - name: pedidos
+        description: "Pedidos"
+        columns:
+          - name: id
+            description: "ID do pedido"
+            tests:
+              - not_null:
+                  enabled: false
+              - unique:
+                  enabled: false
+          - name: cliente_id
+            description: "ID do cliente"
+            tests:
+              - not_null:
+                  enabled: false
+          - name: endereco_id
+            description: "ID do endereço"
+            tests:
+              - not_null:
+                  enabled: false
+
+      - name: produtos
+        description: "Produtos"
+        columns:
+          - name: id
+            description: "ID do produto"
+            tests:
+              - not_null:
+                  enabled: false
+              - unique:
+                  enabled: false
+          - name: categoria_id
+            description: "ID da categoria"
+            tests:
+              - not_null:
+                  enabled: false

@@ -1,0 +1,26 @@
+template_profile:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account-json
+      project: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')).project_id }}"
+      dataset: "dev"
+      threads: 4
+      keyfile_json: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')) }}"
+
+    prod:
+      type: bigquery
+      method: service-account-json
+      project: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')).project_id }}"
+      dataset: "prod"
+      threads: 4
+      keyfile_json: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')) }}"
+
+    pr:
+      type: bigquery
+      method: service-account-json
+      project: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')).project_id }}"
+      dataset: "pr_{{ var('schema_id') }}"
+      threads: 4
+      keyfile_json: "{{ fromjson(env_var('GCLOUD_SERVICE_KEY')) }}"
