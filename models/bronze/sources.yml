@@ -3,6 +3,7 @@ version: 2
 sources:
   - name: ecommerce
     description: "Dados da nossa loja de e-commerce"
+    database: "{{ target.database }}"
     schema: "raw"
     loader: bigquery
 
