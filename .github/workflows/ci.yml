@@ -62,11 +62,27 @@ jobs:
       run: |
         if [ -f "./dbt-state/manifest.json" ]; then
           echo "🎯 Using state-based execution for PR"
+          
+          # Debug state comparison
+          echo "🔍 Debugging state comparison:"
+          dbt ls -s 'state:modified' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" || echo "No modified models found"
+          echo "Modified+ models (with downstream):"
+          dbt ls -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" || echo "No modified+ models found"
+          
           # Always run seeds in PR environment (they don't support state-based execution)
           dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
-          # Run models with state-based selection
-          dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
-          dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
+          
+          # Run models with state-based selection, fallback to full run if no modified models
+          echo "🚀 Running modified models:"
+          dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" || {
+            echo "⚠️  No modified models found or state comparison failed, running all models"
+            dbt run --target pr --vars "schema_id: $SCHEMA_ID"
+          }
+          
+          dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" || {
+            echo "⚠️  Running all tests"
+            dbt test --target pr --vars "schema_id: $SCHEMA_ID"
+          }
         else
           echo "📋 Running full execution for PR (no previous state)"
           dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
