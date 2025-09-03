@@ -58,73 +58,15 @@ jobs:
       run: |
         dbt deps --target pr --vars "schema_id: $SCHEMA_ID"
 
-    - name: Debug defer functionality
-      run: |
-        if [ -f "./dbt-state/manifest.json" ]; then
-          echo "🔍 Production manifest analysis:"
-          echo "Sample model from production manifest:"
-          cat ./dbt-state/manifest.json | jq '.nodes | with_entries(select(.key | contains("gold_pedidos_vendidos__valor_total"))) | to_entries[0].value | {database: .database, schema: .schema, name: .name, relation_name: .relation_name}' || echo "Model not found in manifest"
-          
-          echo "🔍 Current project schema resolution:"
-          dbt debug --target pr --vars "schema_id: $SCHEMA_ID"
-          
-          echo "🔍 Testing defer with specific model:"
-          dbt compile -m gold_pedidos_vendidos__valor_total --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" --log-level info || echo "Defer compilation failed"
-          
-          echo "🔍 All models in current project:"
-          dbt ls --target pr --vars "schema_id: $SCHEMA_ID"
-        else
-          echo "❌ No manifest found for defer testing"
-        fi
-
-    - name: Run dbt with enhanced state-based execution
+    - name: Run dbt with state-based execution
       run: |
         if [ -f "./dbt-state/manifest.json" ]; then
           echo "🎯 Using state-based execution for PR"
-          
-          # Debug state comparison with detailed output
-          echo "🔍 State comparison analysis:"
-          echo "Modified models:"
-          MODIFIED_MODELS=$(dbt ls -s 'state:modified' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" 2>&1 | tee /tmp/modified.log)
-          echo "$MODIFIED_MODELS"
-          
-          echo "Modified+ models (with downstream):"
-          MODIFIED_PLUS=$(dbt ls -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" 2>&1 | tee /tmp/modified_plus.log)
-          echo "$MODIFIED_PLUS"
-          
-          # Check if any models were found
-          MODIFIED_COUNT=$(echo "$MODIFIED_MODELS" | grep -v "^$" | grep -c "template\." || echo "0")
-          echo "📊 Found $MODIFIED_COUNT modified models"
-          
-          # Always run seeds in PR environment (they don't support state-based execution)
-          echo "🌱 Running seeds:"
-          dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
-          
-          # Run models with state-based selection or fallback
-          if [ "$MODIFIED_COUNT" -gt 0 ]; then
-            echo "🚀 Running $MODIFIED_COUNT modified models with defer:"
-            dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" --log-level info
-            
-            echo "🧪 Running tests for modified models:"
-            dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
-          else
-            echo "⚠️  No modified models detected by state comparison"
-            echo "📋 Checking for file-based changes as fallback:"
-            
-            # Git-based fallback detection
-            CHANGED_FILES=$(git diff --name-only origin/main...HEAD | grep -E "models/.*\.sql$" || echo "")
-            if [ -n "$CHANGED_FILES" ]; then
-              echo "📁 Found changed model files: $CHANGED_FILES"
-              echo "🚀 Running all models due to detected file changes:"
-              dbt run --target pr --vars "schema_id: $SCHEMA_ID"
-              dbt test --target pr --vars "schema_id: $SCHEMA_ID"
-            else
-              echo "🔄 No file changes detected, running minimal set:"
-              # Run just one model to verify setup
-              dbt run -m gold_pedidos_vendidos__valor_total --target pr --vars "schema_id: $SCHEMA_ID"
-              dbt test -m gold_pedidos_vendidos__valor_total --target pr --vars "schema_id: $SCHEMA_ID"
-            fi
-          fi
+          # Run seeds only if source files changed
+          dbt seed -s 'state:modified' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID" || dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
+          # Run models with state-based selection
+          dbt run -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
+          dbt test -s 'state:modified+' --defer --state ./dbt-state/ --target pr --vars "schema_id: $SCHEMA_ID"
         else
           echo "📋 Running full execution for PR (no previous state)"
           dbt seed --target pr --vars "schema_id: $SCHEMA_ID"
